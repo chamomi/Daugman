@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DaugmanIris.Model;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -12,6 +13,22 @@ namespace DaugmanIris
         public Form1()
         {
             InitializeComponent();
+
+            //using (var db = new ImageContext())
+            //{
+            //    foreach (var entity in db.MyImages)
+            //        db.MyImages.Remove(entity);
+            //    db.SaveChanges();
+            //    var query = from im in db.MyImages
+            //                orderby im.Name
+            //                select im;
+
+            //    //Console.WriteLine("All blogs in the database:");
+            //    foreach (var item in query)
+            //    {
+            //        Trace.WriteLine(item.Name + " " + item.IrisR + " " + item.PupilR);
+            //    }
+            //}
         }
 
         private void openToolStripMenuItem_Click(object sender, EventArgs e)
@@ -20,11 +37,16 @@ namespace DaugmanIris
             {
                 pictureBox1.Image.Dispose();
             }
+            if (pictureBox2.Image != null)
+            {
+                pictureBox2.Image.Dispose();
+            }
             OpenFileDialog op = new OpenFileDialog();
             op.Filter = "JPeg Image|*.jpg|Bitmap Image|*.bmp|Gif Image|*.gif";
             if (op.ShowDialog() == DialogResult.OK)
             {
                 pictureBox1.Image = Image.FromFile(op.FileName);
+                label1.Text = op.FileName;
             }
         }
 
@@ -49,11 +71,22 @@ namespace DaugmanIris
                 edgeV = iris.y - iris.r;
                 edgeH = iris.x - iris.r;
                 Bitmap bnew1 = Threshold(new Bitmap(bnew), 50);
-                iris = Daugman(bnew1, edgeV, edgeH, false);
-                DrawCircle(iris, bnew);
-                Trace.WriteLine("pupil found: x= " + iris.x.ToString() + " y= " + iris.y.ToString() + " r= " + iris.r.ToString());
+                Iris pupil = Daugman(bnew1, edgeV, edgeH, false);
+                DrawCircle(pupil, bnew);
+                Trace.WriteLine("pupil found: x= " + pupil.x.ToString() + " y= " + pupil.y.ToString() + " r= " + pupil.r.ToString());
 
                 Trace.WriteLine("done");
+
+                using (var db = new ImageContext())
+                {
+                    if (db.MyImages.Find(label1.Text) == null)
+                    {
+                        var newimg = new MyImage { IrisX = iris.x, IrisY = iris.y, IrisR = iris.r, PupilX = pupil.x, PupilY = pupil.y, PupilR = pupil.r, Name = label1.Text };
+                        newimg.SavePicture(pictureBox1.Image);
+                        db.MyImages.Add(newimg);
+                        db.SaveChanges();
+                    }
+                }
             }
             catch (NullReferenceException)
             {
@@ -340,6 +373,33 @@ namespace DaugmanIris
             catch (NullReferenceException)
             {
                 MessageBox.Show("No initial file was chosen");
+            }
+        }
+
+        private void openFromDatabaseToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var open = new Open(this);
+            open.Show();
+        }
+
+        public void DisplayFromDb(string name)
+        {
+            using (var db = new ImageContext())
+            {
+                var img = db.MyImages.Find(name);
+                pictureBox1.Image = img.GetPicture();
+                label1.Text = img.Name;
+                Iris iris = new Iris();
+                iris.x = img.IrisX;
+                iris.y = img.IrisY;
+                iris.r = img.IrisR;
+                DrawCircle(iris, new Bitmap(pictureBox1.Image));
+
+                Iris pupil = new Iris();
+                pupil.x = img.PupilX;
+                pupil.y = img.PupilY;
+                pupil.r = img.PupilR;
+                DrawCircle(pupil, new Bitmap(pictureBox2.Image));
             }
         }
     }
