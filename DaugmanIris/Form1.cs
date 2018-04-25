@@ -16,14 +16,13 @@ namespace DaugmanIris
 
             //using (var db = new ImageContext())
             //{
-            //    foreach (var entity in db.MyImages)
-            //        db.MyImages.Remove(entity);
-            //    db.SaveChanges();
+            //    //foreach (var entity in db.MyImages)
+            //    //    db.MyImages.Remove(entity);
+            //    //db.SaveChanges();
+
             //    var query = from im in db.MyImages
             //                orderby im.Name
             //                select im;
-
-            //    //Console.WriteLine("All blogs in the database:");
             //    foreach (var item in query)
             //    {
             //        Trace.WriteLine(item.Name + " " + item.IrisR + " " + item.PupilR);

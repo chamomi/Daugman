@@ -37,6 +37,7 @@ namespace DaugmanIris.Model
         public int PupilX { get; set; }
         public int PupilY { get; set; }
         public int PupilR { get; set; }
+        public int[] FVector { get; set; }
 
         public System.Drawing.Image GetPicture()
         {
