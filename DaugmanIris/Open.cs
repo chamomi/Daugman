@@ -61,29 +61,22 @@ namespace DaugmanIris
                 var img1 = db.MyImages.Find(list.SelectedItems[0].Text);
                 var img2 = db.MyImages.Find(list.SelectedItems[1].Text);
 
-                if(img1.FVector == null)
-                {
-                    //calculate and save fVector
-                    findVector(img1);
-                }
-
-                if(img2.FVector == null)
-                {
-
-                }
+                List<int> f1 = findVector(img1);
+                List<int> f2 = findVector(img2);
 
                 //compare two vectors
             }
         }
 
-        private Bitmap findVector(MyImage imgIn)
+        private List<int> findVector(MyImage imgIn)
         {
             //normalise
+            int length = 800;
             Bitmap img = new Bitmap(imgIn.GetPicture());
-            Bitmap norm = new Bitmap(1001, imgIn.IrisR-imgIn.PupilR);
+            Bitmap norm = new Bitmap(length + 1, imgIn.IrisR-imgIn.PupilR);
 
             double fi = 0;
-            double step = 2 * Math.PI / 1000;
+            double step = 2 * Math.PI / length;
             int count = 0;
             while (fi < 2 * Math.PI)
             {
@@ -99,24 +92,172 @@ namespace DaugmanIris
                     curR ++;
                     newy--;
                 }
-                
-                //if ((count == 10)||(count == 250) || (count == 500) || (count == 750)) Trace.WriteLine("work");
                 count++;
                 fi += step;
             }
 
             //median filter
             Bitmap filt = MedianFilter(norm, 3);
-            return filt;
 
             //lbp
+            Bitmap lbp = LBP(filt);
 
             //encoding
-            int[] result = new int[500];
+            List<int> result = Encode(lbp);
 
+            foreach (var elem in result)
+                Trace.Write(elem + " ");
 
+            Trace.WriteLine("");
 
-            //return result;
+            return result;
+        }
+
+        private List<int> Encode(Bitmap img)
+        {
+            List<int> features = new List<int>();
+
+            double mgl = 0;
+            for (int i = 0; i < img.Width; i++)
+                for (int j = 0; j < img.Height; j++)
+                    mgl += img.GetPixel(i, j).R;
+            mgl /= img.Width * 24; //CHANGE HEIGHT
+
+            double sgl = 0;
+            for (int i = 0; i < img.Width; i++)
+                for (int j = 0; j < img.Height; j++)
+                    sgl += (img.GetPixel(i, j).R - mgl) * (img.GetPixel(i, j).R - mgl);
+            sgl /= img.Width * 24; //CHANGE HEIGHT
+            sgl = Math.Sqrt(sgl);
+
+            double mprev = 0, sprev = 0;
+
+            //blocks 8x8
+            for(int a = 0; a < 17; a += 8) //TO DO: NORMALISE IMAGE HEIGHT AND CHANGE STOP CONDITION
+                for(int b = 0; b < img.Width-1; b += 8)
+                {
+                    double m = 0;
+                    for (int i = a; i < (a + 8); i++)
+                        for (int j = b; j < (b + 8); j++)
+                            m += img.GetPixel(j, i).R;
+                    m /= 64;
+
+                    double s = 0;
+                    for (int i = a; i < (a + 8); i++)
+                        for (int j = b; j < (b + 8); j++)
+                            s += (img.GetPixel(j, i).R - m) * (img.GetPixel(j, i).R - m);
+                    s /= 64;
+                    s = Math.Sqrt(s);
+
+                    if (m > mgl) features.Add(1);
+                    else features.Add(0);
+                    if (s > sgl) features.Add(1);
+                    else features.Add(0);
+                    if (mprev > mgl) features.Add(1);
+                    else features.Add(0);
+                    if (sprev > sgl) features.Add(1);
+                    else features.Add(0);
+
+                    mprev = m;
+                    sprev = s;
+                }
+
+            return features;
+        }
+
+        //lbp for r=4, p=8
+        private Bitmap LBP(Bitmap img)
+        {
+            Bitmap result = new Bitmap(img);
+
+            for (int i = 0; i < img.Width; i++)
+                for (int j = 0; j < img.Height; j++)
+                {
+                    string bin = "";
+
+                    List<Coord> coords = new List<Coord>();
+                    Coord cor = new Coord();
+                    cor.x = j;
+                    cor.y = i + 4;
+                    coords.Add(cor);
+                    //cor.x = j + 2;
+                    //cor.y = i + 4;
+                    //coords.Add(cor);
+                    for (int k = 4; k > -5; k -= 4) //changed step
+                    {
+                        cor.x = j + 4;
+                        cor.y = i + k;
+                        coords.Add(cor);
+                    }
+                    //cor.x = j + 2;
+                    //cor.y = i - 4;
+                    //coords.Add(cor);
+                    cor.x = j;
+                    cor.y = i - 4;
+                    coords.Add(cor);
+                    //cor.x = j - 2;
+                    //cor.y = i - 4;
+                    //coords.Add(cor);
+                    for (int k = -4; k < 5; k += 4) //changed step from 2
+                    {
+                        cor.x = j - 4;
+                        cor.y = i + k;
+                        coords.Add(cor);
+                    }
+                    //cor.x = j - 2;
+                    //cor.y = i + 4;
+                    //coords.Add(cor);
+
+                    // R = 1, P = 8
+                    //cor.x = j;
+                    //cor.y = i + 1;
+                    //coords.Add(cor);
+                    //cor.x = j + 1;
+                    //cor.y = i + 1;
+                    //coords.Add(cor);
+                    //cor.x = j + 1;
+                    //cor.y = i;
+                    //coords.Add(cor);
+                    //cor.x = j + 1;
+                    //cor.y = i - 1;
+                    //coords.Add(cor);
+                    //cor.x = j;
+                    //cor.y = i - 1;
+                    //coords.Add(cor);
+                    //cor.x = j - 1;
+                    //cor.y = i - 1;
+                    //coords.Add(cor);
+                    //cor.x = j - 1;
+                    //cor.y = i;
+                    //coords.Add(cor);
+                    //cor.x = j - 1;
+                    //cor.y = i + 1;
+                    //coords.Add(cor);
+
+                    foreach (var cord in coords)
+                    {
+                        int x = cord.x, y = cord.y;
+                        if (x < 0) x = 0;
+                        if (x > (img.Height - 1)) x = img.Height - 1;
+                        if (y < 0) y = 0;
+                        if (y > (img.Width - 1)) y = img.Width - 1;
+
+                        if (img.GetPixel(i, j).R > img.GetPixel(y, x).R) bin += "0";
+                        else bin += "1";
+                    }
+                    int outp = Convert.ToInt32(bin, 2);
+                    result.SetPixel(i, j, Color.FromArgb(result.GetPixel(i, j).A, Check(outp), Check(outp), Check(outp)));
+                }
+
+            return result;
+        }
+
+        //check colors' bounds
+        private int Check(double n)
+        {
+            if (n < 0) return 0;
+            else if (n > 255) return 255;
+            else return (int)n;
         }
 
         public static Bitmap MedianFilter(Bitmap sourceBitmap, int matrixSize)
@@ -248,8 +389,9 @@ namespace DaugmanIris
             using (var db = new ImageContext())
             {
                 var img1 = db.MyImages.Find(list.SelectedItems[0].Text);
-                var show = new ShowVector(findVector(img1));
-                show.Show();
+                findVector(img1);
+                //var show = new ShowVector(findVector(img1));
+                //show.Show();
             }
         }
     }
