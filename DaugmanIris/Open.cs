@@ -61,17 +61,40 @@ namespace DaugmanIris
                 var img1 = db.MyImages.Find(list.SelectedItems[0].Text);
                 var img2 = db.MyImages.Find(list.SelectedItems[1].Text);
 
+                //if (img1.FVector == null)
+                //{
+                //    findVector(img1);
+                //    Trace.WriteLine("no 1");
+                //}
+                //if (img2.FVector == null)
+                //{
+                //    findVector(img2);
+                //    Trace.WriteLine("no 2");
+                //}
+
                 List<int> f1 = findVector(img1);
                 List<int> f2 = findVector(img2);
 
                 //compare two vectors
+                int dist = Hamming(f1, f2);
+                Trace.WriteLine(dist);
             }
+        }
+
+        private int Hamming(List<int> f1, List<int> f2)
+        {
+            int dist = 0;
+            for(int i=0;i<f1.Count;i++)
+            {
+                if (f1[i] != f2[i]) dist++;
+            }
+            return dist;
         }
 
         private List<int> findVector(MyImage imgIn)
         {
             //normalise
-            int length = 800;
+            int length = 360;
             Bitmap img = new Bitmap(imgIn.GetPicture());
             Bitmap norm = new Bitmap(length + 1, imgIn.IrisR-imgIn.PupilR);
 
@@ -105,10 +128,17 @@ namespace DaugmanIris
             //encoding
             List<int> result = Encode(lbp);
 
-            foreach (var elem in result)
-                Trace.Write(elem + " ");
+            //foreach (var elem in result)
+            //    Trace.Write(elem + " ");
 
-            Trace.WriteLine("");
+            //Trace.WriteLine("");
+
+            //using (var db = new ImageContext())
+            //{
+            //    var im = db.MyImages.Find(imgIn.Name);
+            //    im.FVector = result.ToArray();
+            //    db.SaveChanges();
+            //}
 
             return result;
         }
@@ -392,6 +422,112 @@ namespace DaugmanIris
                 findVector(img1);
                 //var show = new ShowVector(findVector(img1));
                 //show.Show();
+            }
+        }
+
+        //perform cross-validation
+        private void testToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            double[] res = new double[4];
+            for (int i=0;i<4;i++)
+            {
+                double eff = CrossVal(i);
+                Trace.WriteLine("test set " + (i+1) + ", result is " + eff * 100 + " %");
+                res[i] = eff * 100;
+            }
+
+            Trace.WriteLine("results:");
+            for (int i = 0; i < 4; i++)
+                Trace.WriteLine(i + 1 + ": " + res[i]);
+        }
+
+        private double CrossVal(int mod)
+        {
+            using (var db = new ImageContext())
+            {
+                double success = 0.0;
+                int step = 0;
+                List<MyImage> test = new List<MyImage>();
+                List<MyImage> train = new List<MyImage>();
+                foreach (var img in db.MyImages)
+                {
+                    if (step % 4 == mod)
+                    {
+                        test.Add(img);
+                        step++;
+                    }
+                    else
+                    {
+                        train.Add(img);
+                        step++;
+                    }
+                }
+                Trace.WriteLine(test.Count + " " + train.Count);
+                foreach (var img in test)
+                {
+                    //Dictionary<int, int> dist = new Dictionary<int, int>(); //id, distance
+                    List<Tuple<int, int>> dist = new List<Tuple<int, int>>();
+                    foreach (var val in train)
+                    {
+                        var f1 = findVector(img);
+                        var f2 = findVector(val);
+                        int d = Hamming(f1, f2);
+                        string[] name = val.Name.Split('\\');
+                        int id = Int32.Parse(name[name.Length - 2]);
+                        var tmp = new Tuple<int,int>(id, d);
+                        //Trace.WriteLine("hamming " + d + ", id " + id);
+                        dist.Add(tmp);
+                    }
+                    //var sortDist = from entry in dist orderby entry.Value ascending select entry;
+                    var sortDist = dist.OrderBy(i => i.Item2).ToList();
+
+                    int count = 0;
+                    int k = 3; //kNN parameter
+                    int[][] top = new int[k][];
+                    for (int i = 0; i < k; i++)
+                    {
+                        top[i] = new int[2];
+                        top[i][0] = -1;
+                        top[i][1] = 0;
+                    }
+                    foreach (var el in sortDist)
+                    {
+                        if (count > k-1) break;
+                        count++;
+
+                        for (int j = 0; j < k; j++)
+                        {
+                            if (top[j][0] == el.Item1)
+                            {
+                                top[j][1]++;
+                                break;
+                            }
+                            if(top[j][0] == -1)
+                            {
+                                top[j][1]++;
+                                top[j][0] = el.Item1;
+                                break;
+                            } 
+                        }
+                    }
+                    int maxC = -1;
+                    int maxId = -1;
+                    for(int i=0;i<k;i++)
+                    {
+                        if (top[i][1] > maxC)
+                        {
+                            maxC = top[i][1];
+                            maxId = top[i][0];
+                        }
+                    }
+
+                    string[] nameIm = img.Name.Split('\\');
+                    int idIm = Int32.Parse(nameIm[nameIm.Length - 2]);
+                    Trace.WriteLine("image: " + idIm + ", calculated id: " + maxId);
+                    if (idIm == maxId) success++;
+                }
+                Trace.WriteLine(success);
+                return success / test.Count;
             }
         }
     }

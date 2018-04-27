@@ -16,18 +16,21 @@ namespace DaugmanIris
 
             //using (var db = new ImageContext())
             //{
-            //    //foreach (var entity in db.MyImages)
-            //    //    db.MyImages.Remove(entity);
-            //    //db.SaveChanges();
+            //    string name = @"C:\Users\HP pc\Downloads\ubiris\UBIRIS_200_150_R\Sessao_2\8\Img_8_2_4.jpg";
+            //    var entity = db.MyImages.Find(name);
+            //    db.MyImages.Remove(entity);
 
-            //    var query = from im in db.MyImages
-            //                orderby im.Name
-            //                select im;
-            //    foreach (var item in query)
-            //    {
-            //        Trace.WriteLine(item.Name + " " + item.IrisR + " " + item.PupilR);
-            //    }
-            //}
+            //    db.SaveChanges();
+
+                //    var query = from im in db.MyImages
+                //                orderby im.Name
+                //                select im;
+                //    foreach (var item in query)
+                //    {
+                //        Trace.WriteLine(item.Name + " " + item.IrisR + " " + item.PupilR);
+                //    }
+                //}
+           // }
         }
 
         private void openToolStripMenuItem_Click(object sender, EventArgs e)
